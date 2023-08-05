@@ -13,10 +13,7 @@
 # Players can move up and down 
 # *********************************************************************
 
-import pygame
-import math
-import random
-import numpy
+import pygame, math, random, numpy
 
 class Player: 
     def __init__(self, width, height, x_coord, y_coord, score, move_up, move_down):
@@ -29,10 +26,10 @@ class Player:
         self.move_down = move_down
 
 class Ball: 
-    def __init__(self, size, x_coord, y_coord, x_direction, y_direction):
+    def __init__(self, size, x_coord, y_coord, x_direction, y_direction, velocity):
         self.size = size
-        self.x_coord = x_coord
-        self.y_coord = y_coord
+        self.x_coord = x_coord + (velocity * math.cos(random.choice((0, 3.14))))
+        self.y_coord = y_coord + (velocity * math.sin(random.choice((0, 3.14))))
         self.x_direction = x_direction
         self.y_direction = y_direction
 
@@ -52,7 +49,7 @@ class PongGame:
         
         #Gameplay variables
         self.colors((5, 30, 0), (45, 230, 0))
-        self.velocity = 2.0
+        self.velocity = 3.0
         self.progress = 0
         self.level = 1
 
@@ -91,7 +88,7 @@ class PongGame:
         self.draw_players(self.p_right, self.screen, self.main_color)
         self.ball_move(self.ball)
         self.display_scores()
-        self.display_level()
+        #scoreself.display_level()
         self.draw_dashed_line((self.screen_width/2, 0), (self.screen_width/2, self.screen_height))
     
     def initialize_players(self):
@@ -104,7 +101,8 @@ class PongGame:
             self.screen_width/2 - ball_size/2,
             self.screen_height/2 - ball_size/2,
             random.choice([-1, 1]), 
-            random.choice([-1, 1])
+            random.choice([-1, 1]), 
+            self.velocity
             )
         
     def draw_ball(self, ball: Ball, screen: pygame.Surface, color: tuple):        
@@ -127,7 +125,7 @@ class PongGame:
     
     def ball_move(self, ball: Ball):    
         # Restricting the ball's move along the Y axis 
-        if ball.y_coord <= 0 or ball.y_coord >= self.screen_height - 10:
+        if (ball.y_coord <= 0 or ball.y_coord >= self.screen_height - 10):
             ball.y_direction *= -1
         
         # Score change when ball goes out of the frame along the X axis
@@ -149,20 +147,16 @@ class PongGame:
     
     def ball_bounce_players(self, ball: Ball): 
         if (
-                (
-                ball.x_coord <= (self.p_left.x_coord + self.p_left.width) and 
-                self.p_left.y_coord <= ball.y_coord <= ball.y_coord + ball.size <= (self.p_left.y_coord + self.p_left.height)
-                ) 
-            or
-                (
-                (ball.x_coord + ball.size) >= self.p_right.x_coord and 
-                self.p_right.y_coord <= ball.y_coord <= ball.y_coord + ball.size <= (self.p_right.y_coord + self.p_right.height)
-                )
+            ball.x_coord <= (self.p_left.x_coord + self.p_left.width) and 
+            self.p_left.y_coord <= ball.y_coord <= ball.y_coord + ball.size <= (self.p_left.y_coord + self.p_left.height)
             ): 
-            self.sound(self.bounce)
-            ball.x_direction *= -1
-            self.progress += 1
-            self.increse_level(self.progress)
+            self.bounce_coordinates(self.p_left, ball, self.velocity)
+            
+        if (
+            (ball.x_coord + ball.size) >= self.p_right.x_coord and 
+            self.p_right.y_coord <= ball.y_coord <= ball.y_coord + ball.size <= (self.p_right.y_coord + self.p_right.height)
+            ):
+            self.bounce_coordinates(self.p_right, ball, self.velocity)
         
     def ball_reset(self): 
         self.initialize_ball(self.ball_size)
@@ -182,7 +176,7 @@ class PongGame:
         
         score_right = self.game_font.render(f"{self.p_right.score}", True, self.main_color)
         score_right_rect = score_right.get_rect()
-        score_right_rect.left = self.screen_width / 2 + 20
+        score_right_rect.left = self.screen_width / 2 + 25
         self.screen.blit(score_right, score_right_rect)
         
     def display_level(self):
@@ -192,7 +186,7 @@ class PongGame:
         level_rect.right = self.screen_width / 2 + level.get_width() / 2
         self.screen.blit(level, level_rect)
         
-    def draw_dashed_line(self, start_post, end_pos, width = 1, dash_length = 5):
+    def draw_dashed_line(self, start_post, end_pos, width = 10, dash_length = 10):
         x1, y1 = start_post
         x2, y2 = end_pos
         dl = dash_length
@@ -270,5 +264,23 @@ class PongGame:
         pygame.mixer.music.load(sound_file)
         pygame.mixer.music.set_volume(0.2)
         pygame.mixer.music.play()
-    
+        
+    def bounce_coordinates(self, player: Player, ball: Ball, velocity: float): 
+        relative_intersect_y = (player.y_coord + (player.height / 2)) - ball.y_coord
+        normalized_relative_intersectionY = relative_intersect_y / (player.height / 2)
+        bounce_angle = normalized_relative_intersectionY * (3.14/4)
+        
+        if player.x_coord < self.screen_height/2:
+            ball.x_direction += velocity * math.cos(bounce_angle)
+            ball.y_direction += velocity * -math.sin(bounce_angle)
+        elif player.x_coord > self.screen_height/2: 
+            ball.x_direction += velocity * -math.cos(bounce_angle)
+            ball.y_direction += velocity * math.sin(bounce_angle)
+            
+        self.sound(self.bounce)
+        
+        print(f"Rel Intersect: {relative_intersect_y}")
+        print(f"Norm Rel Intersect: {normalized_relative_intersectionY}")
+        print(f"bounceAngle: {bounce_angle}")
+
 PongGame()
